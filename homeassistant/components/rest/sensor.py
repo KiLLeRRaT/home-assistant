@@ -41,6 +41,7 @@ DEFAULT_NAME = "REST Sensor"
 DEFAULT_VERIFY_SSL = True
 DEFAULT_FORCE_UPDATE = False
 DEFAULT_TIMEOUT = 10
+CONF_HEADERS_TEMPLATE = ""
 
 
 CONF_JSON_ATTRS = "json_attributes"
@@ -51,6 +52,7 @@ PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend(
     {
         vol.Exclusive(CONF_RESOURCE, CONF_RESOURCE): cv.url,
         vol.Exclusive(CONF_RESOURCE_TEMPLATE, CONF_RESOURCE): cv.template,
+        vol.Exclusive(CONF_HEADERS_TEMPLATE, CONF_HEADERS): cv.template,
         vol.Optional(CONF_AUTHENTICATION): vol.In(
             [HTTP_BASIC_AUTHENTICATION, HTTP_DIGEST_AUTHENTICATION]
         ),
@@ -87,6 +89,7 @@ def setup_platform(hass, config, add_entities, discovery_info=None):
     username = config.get(CONF_USERNAME)
     password = config.get(CONF_PASSWORD)
     headers = config.get(CONF_HEADERS)
+    headers_template = config.get(CONF_HEADERS_TEMPLATE)
     unit = config.get(CONF_UNIT_OF_MEASUREMENT)
     device_class = config.get(CONF_DEVICE_CLASS)
     value_template = config.get(CONF_VALUE_TEMPLATE)
@@ -101,6 +104,10 @@ def setup_platform(hass, config, add_entities, discovery_info=None):
     if resource_template is not None:
         resource_template.hass = hass
         resource = resource_template.render()
+
+    if headers_template is not None:
+        headers_template.hass = hass
+        headers = headers_template.render()
 
     if username and password:
         if config.get(CONF_AUTHENTICATION) == HTTP_DIGEST_AUTHENTICATION:
