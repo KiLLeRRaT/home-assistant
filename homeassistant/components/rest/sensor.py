@@ -41,7 +41,7 @@ DEFAULT_NAME = "REST Sensor"
 DEFAULT_VERIFY_SSL = True
 DEFAULT_FORCE_UPDATE = False
 DEFAULT_TIMEOUT = 10
-CONF_HEADERS_TEMPLATE = ""
+CONF_HEADERS_TEMPLATE = "headers_template"
 
 
 CONF_JSON_ATTRS = "json_attributes"
@@ -52,7 +52,10 @@ PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend(
     {
         vol.Exclusive(CONF_RESOURCE, CONF_RESOURCE): cv.url,
         vol.Exclusive(CONF_RESOURCE_TEMPLATE, CONF_RESOURCE): cv.template,
-        vol.Exclusive(CONF_HEADERS_TEMPLATE, CONF_HEADERS): cv.template,
+        # vol.Exclusive(CONF_HEADERS_TEMPLATE, CONF_HEADERS): cv.template,
+        vol.Exclusive(CONF_HEADERS_TEMPLATE, CONF_HEADERS): vol.Schema(
+            {cv.string: cv.template}
+        ),
         vol.Optional(CONF_AUTHENTICATION): vol.In(
             [HTTP_BASIC_AUTHENTICATION, HTTP_DIGEST_AUTHENTICATION]
         ),
@@ -107,7 +110,9 @@ def setup_platform(hass, config, add_entities, discovery_info=None):
 
     if headers_template is not None:
         headers_template.hass = hass
-        headers = headers_template.render()
+        # headers = headers_template.render()
+        # for key, value in headers_template.items():
+        #     _LOGGER.info('Albert Headers: %s, %s', key, value)
 
     if username and password:
         if config.get(CONF_AUTHENTICATION) == HTTP_DIGEST_AUTHENTICATION:
@@ -136,6 +141,7 @@ def setup_platform(hass, config, add_entities, discovery_info=None):
                 force_update,
                 resource_template,
                 json_attrs_path,
+                headers_template,
             )
         ],
         True,
@@ -157,6 +163,7 @@ class RestSensor(Entity):
         force_update,
         resource_template,
         json_attrs_path,
+        headers_template,
     ):
         """Initialize the REST sensor."""
         self._hass = hass
@@ -171,6 +178,7 @@ class RestSensor(Entity):
         self._force_update = force_update
         self._resource_template = resource_template
         self._json_attrs_path = json_attrs_path
+        self._headers_template = headers_template
 
     @property
     def name(self):
