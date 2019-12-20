@@ -41,9 +41,9 @@ DEFAULT_NAME = "REST Sensor"
 DEFAULT_VERIFY_SSL = True
 DEFAULT_FORCE_UPDATE = False
 DEFAULT_TIMEOUT = 10
+
+
 CONF_HEADERS_TEMPLATE = "headers_template"
-
-
 CONF_JSON_ATTRS = "json_attributes"
 CONF_JSON_ATTRS_PATH = "json_attributes_path"
 METHODS = ["POST", "GET"]
@@ -107,9 +107,6 @@ def setup_platform(hass, config, add_entities, discovery_info=None):
         resource_template.hass = hass
         resource = resource_template.render()
 
-    if headers_template is not None:
-        headers = get_headers_from_headers_template(hass, headers_template)
-
     if username and password:
         if config.get(CONF_AUTHENTICATION) == HTTP_DIGEST_AUTHENTICATION:
             auth = HTTPDigestAuth(username, password)
@@ -117,7 +114,17 @@ def setup_platform(hass, config, add_entities, discovery_info=None):
             auth = HTTPBasicAuth(username, password)
     else:
         auth = None
-    rest = RestData(method, resource, auth, headers, payload, verify_ssl, timeout)
+    rest = RestData(
+        hass,
+        method,
+        resource,
+        auth,
+        headers,
+        headers_template,
+        payload,
+        verify_ssl,
+        timeout,
+    )
     rest.update()
     if rest.data is None:
         raise PlatformNotReady
@@ -211,21 +218,6 @@ class RestSensor(Entity):
         if self._resource_template is not None:
             self.rest.set_url(self._resource_template.render())
 
-        if self._headers_template is not None:
-            self._headers = get_headers_from_headers_template(
-                self._hass, self._headers_template
-            )
-
-        # _LOGGER.error('Albert Headers START')
-
-        # if self._headers_template is not None:
-        #     for key, value in self._headers_template.items():
-        #         value.hass = self._hass
-        #         _LOGGER.error('Albert Headers: %s, %s', key, value)
-        #         _LOGGER.error('Albert Headers Rendered: %s, %s', key, value.render())
-
-        # _LOGGER.error('Albert Headers END')
-
         self.rest.update()
         value = self.rest.data
         _LOGGER.debug("Data fetched from resource: %s", value)
@@ -288,13 +280,24 @@ class RestData:
     """Class for handling the data retrieval."""
 
     def __init__(
-        self, method, resource, auth, headers, data, verify_ssl, timeout=DEFAULT_TIMEOUT
+        self,
+        hass,
+        method,
+        resource,
+        auth,
+        headers,
+        headers_template,
+        data,
+        verify_ssl,
+        timeout=DEFAULT_TIMEOUT,
     ):
         """Initialize the data object."""
+        self._hass = hass
         self._method = method
         self._resource = resource
         self._auth = auth
         self._headers = headers
+        self._headers_template = headers_template
         self._request_data = data
         self._verify_ssl = verify_ssl
         self._timeout = timeout
@@ -312,6 +315,10 @@ class RestData:
 
     def update(self):
         """Get the latest data from REST service with provided method."""
+
+        if self._headers_template is not None:
+            self._headers = self.get_headers_from_headers_template()
+
         _LOGGER.debug("Updating from %s", self._resource)
         try:
             response = self._http_session.request(
@@ -330,16 +337,13 @@ class RestData:
             self.data = None
             self.headers = None
 
+    def get_headers_from_headers_template(self):
+        """Get headers from headers template."""
 
-def get_headers_from_headers_template(hass, headers_template):
-    """Get Headers from Template (TODO, MOVE THIS TO INSTANCE FUNCTION!)."""
+        headers = {}
 
-    _LOGGER.error("Albert Headers START")
+        for key, value in self._headers_template.items():
+            value.hass = self._hass
+            headers[key] = value.render()
 
-    # if self._headers_template is not None:
-    for key, value in headers_template.items():
-        value.hass = hass
-        _LOGGER.error("Albert Headers: %s, %s", key, value)
-        _LOGGER.error("Albert Headers Rendered: %s, %s", key, value.render())
-
-    _LOGGER.error("Albert Headers END")
+        return headers
