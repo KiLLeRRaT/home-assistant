@@ -52,9 +52,8 @@ PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend(
     {
         vol.Exclusive(CONF_RESOURCE, CONF_RESOURCE): cv.url,
         vol.Exclusive(CONF_RESOURCE_TEMPLATE, CONF_RESOURCE): cv.template,
-        # vol.Exclusive(CONF_HEADERS_TEMPLATE, CONF_HEADERS): cv.template,
         vol.Exclusive(CONF_HEADERS_TEMPLATE, CONF_HEADERS): vol.Schema(
-            {cv.string: cv.template}
+            {cv.string: cv.template_complex}
         ),
         vol.Optional(CONF_AUTHENTICATION): vol.In(
             [HTTP_BASIC_AUTHENTICATION, HTTP_DIGEST_AUTHENTICATION]
@@ -109,10 +108,7 @@ def setup_platform(hass, config, add_entities, discovery_info=None):
         resource = resource_template.render()
 
     if headers_template is not None:
-        headers_template.hass = hass
-        # headers = headers_template.render()
-        # for key, value in headers_template.items():
-        #     _LOGGER.info('Albert Headers: %s, %s', key, value)
+        headers = get_headers_from_headers_template(hass, headers_template)
 
     if username and password:
         if config.get(CONF_AUTHENTICATION) == HTTP_DIGEST_AUTHENTICATION:
@@ -214,6 +210,21 @@ class RestSensor(Entity):
         """Get the latest data from REST API and update the state."""
         if self._resource_template is not None:
             self.rest.set_url(self._resource_template.render())
+
+        if self._headers_template is not None:
+            self._headers = get_headers_from_headers_template(
+                self._hass, self._headers_template
+            )
+
+        # _LOGGER.error('Albert Headers START')
+
+        # if self._headers_template is not None:
+        #     for key, value in self._headers_template.items():
+        #         value.hass = self._hass
+        #         _LOGGER.error('Albert Headers: %s, %s', key, value)
+        #         _LOGGER.error('Albert Headers Rendered: %s, %s', key, value.render())
+
+        # _LOGGER.error('Albert Headers END')
 
         self.rest.update()
         value = self.rest.data
@@ -318,3 +329,17 @@ class RestData:
             _LOGGER.error("Error fetching data: %s failed with %s", self._resource, ex)
             self.data = None
             self.headers = None
+
+
+def get_headers_from_headers_template(hass, headers_template):
+    """Get Headers from Template (TODO, MOVE THIS TO INSTANCE FUNCTION!)."""
+
+    _LOGGER.error("Albert Headers START")
+
+    # if self._headers_template is not None:
+    for key, value in headers_template.items():
+        value.hass = hass
+        _LOGGER.error("Albert Headers: %s, %s", key, value)
+        _LOGGER.error("Albert Headers Rendered: %s, %s", key, value.render())
+
+    _LOGGER.error("Albert Headers END")
